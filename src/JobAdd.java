@@ -13,7 +13,7 @@ public class JobAdd
 {
     private static SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.mm.dd");
     private static int[] relevantAttributes = {184, 189, 201, 204, 207, 210, 242,};
-    private Map<Integer, StringBuilder> keyValue;
+    private Map<Integer, StringBuilder> attributes;
     private int finnkode;
     private Date fromDate;
     private Date toDate;
@@ -23,7 +23,7 @@ public class JobAdd
 
     public JobAdd()
     {
-        keyValue = new LinkedHashMap<>();
+        attributes = new LinkedHashMap<>();
     }
 
     void setValues(List<String> tokens) throws ParseException
@@ -48,19 +48,19 @@ public class JobAdd
         {
             return false;
         }
-        if (keyValue.containsKey(attrKey))
+        if (attributes.containsKey(attrKey))
         {
-            keyValue.get(attrKey).append(' ').append(tokens[5]);
+            attributes.get(attrKey).append(' ').append(tokens[5]);
         } else
         {
-            keyValue.put(attrKey, new StringBuilder(tokens[5]));
+            attributes.put(attrKey, new StringBuilder(tokens[5]));
         }
         return true;
     }
 
     public String getAttr(int key)
     {
-        StringBuilder stringBuilder = keyValue.get(key);
+        StringBuilder stringBuilder = attributes.get(key);
         if (stringBuilder == null)
             return "";
         return stringBuilder.toString();
@@ -90,10 +90,10 @@ public class JobAdd
         builder.append(Jsoup.parse(headline).text());
         for (int relevantAttribute : relevantAttributes)
         {
-            if (keyValue.containsKey(relevantAttribute))
+            if (attributes.containsKey(relevantAttribute))
             {
                 builder.append(' ');
-                builder.append(Jsoup.parse(keyValue.get(relevantAttribute).toString()).text());
+                builder.append(Jsoup.parse(attributes.get(relevantAttribute).toString()).text());
 
             }
         }
