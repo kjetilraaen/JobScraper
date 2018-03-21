@@ -81,23 +81,34 @@ public class JobAdd
                         occupation.contains("produkt")));
     }
 
-    public String makeStringForR()
+    public String toJson()
     {
-        StringBuilder builder = new StringBuilder("" + finnkode);
-        builder.append('\t');
+        StringBuilder builder = new StringBuilder("{\"index\":{\"_id\":\"" + finnkode + "\"}}\n");
+        builder.append("{ \"date\": \"");
         builder.append(dateFormat.format(fromDate));
-        builder.append('\t');
-        builder.append(Jsoup.parse(headline).text());
+        builder.append("\", \"text\": \"");
+        builder.append(cleanText(headline));
         for (int relevantAttribute : relevantAttributes)
         {
             if (attributes.containsKey(relevantAttribute))
             {
                 builder.append(' ');
-                builder.append(Jsoup.parse(attributes.get(relevantAttribute).toString()).text());
+                String str = attributes.get(relevantAttribute).toString();
+                builder.append(cleanText(str));
 
             }
         }
-        builder.append('\n');
+        builder.append("\" }\n");
         return builder.toString();
+    }
+
+    private static String cleanText(String str)
+    {
+        String text = Jsoup.parse(str).text();
+        text=text.replace('\"', ' ');
+        text=text.replace('\'', ' ');
+        text=text.replace('\\', '/');
+        text=text.replace('+', 'p'); //Elastic search cannot handle escaping of plus characters
+        return text;
     }
 }

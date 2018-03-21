@@ -18,7 +18,7 @@ public class JobAddParser
             if(jobAdd.isProgrammingJob())
             {
                 noProgrammingJobs++;
-                writer.append(jobAdd.makeStringForR());
+                writer.append(jobAdd.toJson());
             }
         }
         writer.close();

@@ -10,7 +10,7 @@ public class Main
         Map<Integer, JobAdd> adds = parser.readAdds("job-ads-utf8.txt");
         parser.parseAttr(adds, "job-ads-attr-utf8.txt");
         System.out.println("Parsing done.!");
-        parser.writeITJobs(adds, "it_jobs.txt");
+        parser.writeITJobs(adds, "it_jobs.json");
         //writeAllJobTitles(adds);
         return;
     }
