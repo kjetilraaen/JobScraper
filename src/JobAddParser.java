@@ -1,6 +1,7 @@
 import java.io.*;
 import java.text.ParseException;
 import java.util.*;
+import java.util.function.Predicate;
 
 /**
  * Created by kjetilr on 21/02/2018.
@@ -18,12 +19,13 @@ public class JobAddParser
             if(jobAdd.isProgrammingJob())
             {
                 noProgrammingJobs++;
-                writer.append(jobAdd.toJson());
+                writer.append(jobAdd.toCSV());
             }
         }
         writer.close();
         System.out.println("Number of programming jobs = " + noProgrammingJobs);
     }
+
 
     private void writeAllJobTitles(Map<Integer, JobAdd> adds) throws IOException
     {
@@ -40,11 +42,13 @@ public class JobAddParser
         writer.close();
     }
 
-    public void parseAttr(Map<Integer, JobAdd> adds, String fileName) throws IOException
+    public void parseAttr(Map<Integer, JobAdd> adds, String fileName, String saveFile) throws IOException
     {
         int failures = 0;
         int attrForMissingAdd = 0;
         BufferedReader reader = new BufferedReader(new FileReader(fileName));
+      //  BufferedWriter writer = new BufferedWriter(new FileWriter(saveFile));
+        int previousFinnkode=0;
         while (reader.ready())
         {
             String[] tokens = reader.readLine().split("\t");
@@ -57,8 +61,13 @@ public class JobAddParser
             }
             boolean ok = jobAdd.addAttr(tokens);
             if (!ok) failures++;
-
+            if (previousFinnkode != 0 && previousFinnkode != finnkode)
+            {
+        //        writer.append(adds.remove(previousFinnkode).toJson());
+            }
+            previousFinnkode=finnkode;
         }
+        //writer.close();
         System.out.println("failures in attributes = " + failures);
         System.out.println("Attributes for missing adds = " + attrForMissingAdd);
     }

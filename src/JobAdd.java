@@ -26,6 +26,17 @@ public class JobAdd
         attributes = new LinkedHashMap<>();
     }
 
+    private static String cleanText(String str)
+    {
+        String text = Jsoup.parse(str).text();
+        text = text.replace('\"', ' ');
+        text = text.replace('\'', ' ');
+        text = text.replace('\\', '/');
+        text = text.replace(',', ' ');
+        text = text.replace('+', 'p'); //Elastic search cannot handle escaping of plus characters
+        return text;
+    }
+
     void setValues(List<String> tokens) throws ParseException
     {
         finnkode = parseInt(tokens.get(0)); //Cannot be empty
@@ -78,6 +89,8 @@ public class JobAdd
                         occupation.contains("hemmede") ||
                         occupation.contains("infratruktur") ||
                         occupation.contains("portefølje") ||
+                        occupation.contains("prosjekt") ||
+                        occupation.contains("fag") ||
                         occupation.contains("produkt")));
     }
 
@@ -88,6 +101,26 @@ public class JobAdd
         builder.append(dateFormat.format(fromDate));
         builder.append("\", \"text\": \"");
         builder.append(cleanText(headline));
+        writeMainDescription(builder);
+        builder.append("\" }\n");
+        return builder.toString();
+    }
+
+    public String toCSV()
+    {
+        StringBuilder builder = new StringBuilder();
+        builder.append(finnkode);
+        builder.append(',');
+        builder.append(dateFormat.format(fromDate));
+        builder.append(",");
+        builder.append(cleanText(headline));
+        writeMainDescription(builder);
+        builder.append('\n');
+        return builder.toString();
+    }
+
+    private void writeMainDescription(StringBuilder builder)
+    {
         for (int relevantAttribute : relevantAttributes)
         {
             if (attributes.containsKey(relevantAttribute))
@@ -98,17 +131,10 @@ public class JobAdd
 
             }
         }
-        builder.append("\" }\n");
-        return builder.toString();
     }
 
-    private static String cleanText(String str)
+    public boolean hasFromDate()
     {
-        String text = Jsoup.parse(str).text();
-        text=text.replace('\"', ' ');
-        text=text.replace('\'', ' ');
-        text=text.replace('\\', '/');
-        text=text.replace('+', 'p'); //Elastic search cannot handle escaping of plus characters
-        return text;
+        return fromDate != null;
     }
 }

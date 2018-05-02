@@ -1,107 +1,82 @@
-
 library(dplyr)
 library(tidytext)
 library(tidyr)
+library(lubridate)
 library(ggplot2)
-dataVector=readLines("addtexts.txt")
+library(tidyquant)
+library(widyr)
+
+plotTimeSeries <- function(date_words,word){
+    selected_word = date_words[which(date_words$word == word),]
+    selected_words_by_month <- selected_word %>%
+    tq_transmute(
+    select = n,
+    mutate_fun = apply.monthly,
+    FUN = sum,
+    na.rm = TRUE
+    )
+    for (ii in seq_along(selected_words_by_month$date)) {day(selected_words_by_month[ii,]$date) = 15}
+    selected_words_by_month = merge(selected_words_by_month, total_adds_by_month, by = "date",all = TRUE)
+    selected_words_by_month$n.x[is.na(selected_words_by_month$n.x)] = 0
+    selected_words_by_month$ratio = selected_words_by_month$n.x / selected_words_by_month$n.y
+
+    selected_words_by_month %>%
+    ggplot(aes(x = date, y = ratio * 100)) +
+        geom_point() +
+        geom_smooth(method = "loess") +
+        labs(title = paste("Use of the word",word,"by month"), x = "",
+        y = "% of occurences") +
+        theme(legend.position = "none")
+    #return (selected_words_by_month)
+}
+
+dataVector = read.csv("itjobs.csv", stringsAsFactors = FALSE, col.names = c("finnkode", "date", "text")) %>% mutate(date = ymd(date))
 
 #Make tidytext
-text_df <- data_frame(line= 1:length(dataVector) ,text = dataVector)
-jobadds_tidy = text_df %>% unnest_tokens(word, text)
+jobadds_tidy = dataVector %>% unnest_tokens(word, text, format = "html")
 
 data(stop_words)
 jobadds_tidy <- jobadds_tidy %>% anti_join(stop_words)
 stop_words_no <- readLines("stopwords-no.txt")
 stop_words_no <- data_frame(word = stop_words_no)
-jobadds_tidy <- jobadds_tidy %>% anti_join(stop_words_no) %>% anti_join(stop_words_no)
-
-#plot word frequency
-png(file="word_frequency.png",width = 600, height = 600, units = "px",pointsize=24)
-jobadds_tidy %>%
-  count(word, sort = TRUE) %>%
-  filter(n > 100) %>%
-  mutate(word = reorder(word, n)) %>%
-  ggplot(aes(word, n)) +
-  geom_col() +
-  xlab(NULL) +
-  coord_flip() +
-    theme(axis.text=element_text(size=18))
-dev.off()
+jobadds_tidy <- jobadds_tidy %>%
+    anti_join(stop_words_no) %>%
+    anti_join(stop_words_no)
 
 
-  job_words <- jobadds_tidy %>%
-    count(line, word, sort = TRUE) %>%
+date_words <- jobadds_tidy %>%
+    count(date, word, sort = TRUE) %>%
     ungroup()
 
-  job_words
+total_adds_by_date <- dataVector %>%
+    count(date, sort = TRUE) %>%
+    ungroup()
+total_adds_by_month <- total_adds_by_date %>%
+tq_transmute(
+select = n,
+mutate_fun = apply.monthly,
+FUN = sum,
+na.rm = TRUE
+)
+for (ii in seq_along(total_adds_by_month$date)) {day(total_adds_by_month[ii,]$date) = 15}
 
-#plot tf_idf
-  plot_words <- job_words %>%
-    bind_tf_idf(word, line, n) %>%
-    arrange(desc(tf_idf)) %>%
-    mutate(word = factor(word, levels = rev(unique(word)))) %>%
-    mutate(line = factor(line, levels = 1:length(dataVector)))
+plotTimeSeries(date_words,"java")
 
-  plot_words %>%
-    filter(line %in% c(111,112,113,114,115,116)) %>%
-    group_by(line) %>%
-    top_n(5, tf_idf) %>%
+word_pairs <- jobadds_tidy %>%
+pairwise_count(word, finnkode, sort = TRUE)
+
+word_cors <- jobadds_tidy %>%
+    group_by(word) %>%
+    filter(n() >= 20) %>%
+    pairwise_cor(word, finnkode, sort = TRUE)
+
+word_cors %>%
+    filter(item1 %in% c("java", "python", "sql", "cpp")) %>%
+    group_by(item1) %>%
+    top_n(6) %>%
     ungroup() %>%
-    mutate(word = reorder(word, tf_idf)) %>%
-    ggplot(aes(word, tf_idf, fill = line)) +
-    geom_col(show.legend = FALSE) +
-    labs(x = NULL, y = "tf-idf") +
-    facet_wrap(~line, ncol = 2, scales = "free") +
-    coord_flip()
-
-#bigrams
-job_bigrams = text_df %>%
-unnest_tokens(bigram, text, token = "ngrams", n = 2)
-bigrams_separated <- job_bigrams %>%
-separate(bigram, c("word1", "word2"), sep = " ")
-bigrams_filtered <- bigrams_separated %>%
-    filter(!word1 %in% stop_words$word) %>%
-    filter(!word2 %in% stop_words$word) %>%
-    filter(!word1 %in% stop_words_no$word) %>%
-    filter(!word2 %in% stop_words_no$word)
-
-bigrams_united <- bigrams_filtered %>%
-unite(bigram, word1, word2, sep = " ")
-
-
-#plot bigram frequency
-png(file="bigram_frequency.png",width = 600, height = 600, units = "px",pointsize=24)
-bigrams_united %>%
-    count(bigram, sort = TRUE) %>%
-    filter(n > 20) %>%
-    mutate(bigram = reorder(bigram, n)) %>%
-    ggplot(aes(bigram, n)) +
-    geom_col() +
-    xlab(NULL) +
-    coord_flip() +
-    theme(axis.text=element_text(size=18))
-dev.off()
-
-bigram_tf_idf <- bigrams_united %>%
-    count(line, bigram) %>%
-    bind_tf_idf(bigram, line, n) %>%
-    arrange(desc(tf_idf))
-
-#plot bigram tf_idf
-plot_bigrams <- bigram_tf_idf %>%
-    bind_tf_idf(bigram, line, n) %>%
-    arrange(desc(tf_idf)) %>%
-    mutate(bigram = factor(bigram, levels = rev(unique(bigram)))) %>%
-    mutate(line = factor(line, levels = 1:length(dataVector)))
-
-plot_bigrams %>%
-    filter(line %in% c(111,112,113,114,115,116)) %>%
-    group_by(line) %>%
-    top_n(5, tf_idf) %>%
-    ungroup() %>%
-    mutate(bigram = reorder(bigram, tf_idf)) %>%
-    ggplot(aes(bigram, tf_idf, fill = line)) +
-    geom_col(show.legend = FALSE) +
-    labs(x = NULL, y = "tf-idf") +
-    facet_wrap(~line, ncol = 2, scales = "free") +
+    mutate(item2 = reorder(item2, correlation)) %>%
+    ggplot(aes(item2, correlation)) +
+    geom_bar(stat = "identity") +
+    facet_wrap(~ item1, scales = "free") +
     coord_flip()
