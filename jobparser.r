@@ -5,6 +5,8 @@ library(lubridate)
 library(ggplot2)
 library(tidyquant)
 library(widyr)
+library(igraph)
+library(ggraph)
 
 plotTimeSeries <- function(date_words,word){
     selected_word = date_words[which(date_words$word == word),]
@@ -27,6 +29,7 @@ plotTimeSeries <- function(date_words,word){
         labs(title = paste("Use of the word",word,"by month"), x = "",
         y = "% of occurences") +
         theme(legend.position = "none")
+    ggsave(paste("time_series_",word,".pdf",sep=''),device="pdf")
     #return (selected_words_by_month)
 }
 
@@ -56,8 +59,8 @@ tq_transmute(
 select = n,
 mutate_fun = apply.monthly,
 FUN = sum,
-na.rm = TRUE
-)
+na.rm = TRUE)
+
 for (ii in seq_along(total_adds_by_month$date)) {day(total_adds_by_month[ii,]$date) = 15}
 
 plotTimeSeries(date_words,"java")
@@ -72,6 +75,18 @@ word_cors <- jobadds_tidy %>%
 
 word_cors %>%
     filter(item1 %in% c("java", "python", "sql", "cpp")) %>%
+    group_by(item1) %>%
+    top_n(6) %>%
+    ungroup() %>%
+    mutate(item2 = reorder(item2, correlation)) %>%
+    ggplot(aes(item2, correlation)) +
+    geom_bar(stat = "identity") +
+    facet_wrap(~ item1, scales = "free") +
+    coord_flip()
+ggsave("languages_correlations.pdf",device="pdf")
+
+word_cors %>%
+    filter(item1 %in% c("steria","every")) %>%
     group_by(item1) %>%
     top_n(6) %>%
     ungroup() %>%
